@@ -23,6 +23,7 @@ typedef struct {
 	int state;
 	int period;
 	int cnt;
+	int initialized:1;
 } led_dev_t;
 
 led_dev_t led_dev[] = {
@@ -30,11 +31,13 @@ led_dev_t led_dev[] = {
 		CONFIG_LED_STATUS_STATE,
 		LED_STATUS_PERIOD,
 		0,
+		0,
 	},
 #if defined(CONFIG_LED_STATUS1)
 	{	CONFIG_LED_STATUS_BIT1,
 		CONFIG_LED_STATUS_STATE1,
 		LED_STATUS_PERIOD1,
+		0,
 		0,
 	},
 #endif
@@ -43,12 +46,14 @@ led_dev_t led_dev[] = {
 		CONFIG_LED_STATUS_STATE2,
 		LED_STATUS_PERIOD2,
 		0,
+		0,
 	},
 #endif
 #if defined(CONFIG_LED_STATUS3)
 	{	CONFIG_LED_STATUS_BIT3,
 		CONFIG_LED_STATUS_STATE3,
 		LED_STATUS_PERIOD3,
+		0,
 		0,
 	},
 #endif
@@ -57,6 +62,7 @@ led_dev_t led_dev[] = {
 		CONFIG_LED_STATUS_STATE4,
 		LED_STATUS_PERIOD4,
 		0,
+		0,
 	},
 #endif
 #if defined(CONFIG_LED_STATUS5)
@@ -64,22 +70,26 @@ led_dev_t led_dev[] = {
 		CONFIG_LED_STATUS_STATE5,
 		LED_STATUS_PERIOD5,
 		0,
+		0,
 	},
 #endif
 };
 
 #define MAX_LED_DEV	(sizeof(led_dev)/sizeof(led_dev_t))
 
-static int status_led_init_done = 0;
 
 void status_led_init(void)
 {
 	led_dev_t *ld;
 	int i;
 
-	for (i = 0, ld = led_dev; i < MAX_LED_DEV; i++, ld++)
+	for (i = 0, ld = led_dev; i < MAX_LED_DEV; i++, ld++) {
 		__led_init (ld->mask, ld->state);
-	status_led_init_done = 1;
+		ld->initialized = 1;
+	}
+
+	return 0;
+
 }
 
 void status_led_tick(ulong timestamp)
@@ -87,10 +97,10 @@ void status_led_tick(ulong timestamp)
 	led_dev_t *ld;
 	int i;
 
-	if (!status_led_init_done)
-		status_led_init();
-
 	for (i = 0, ld = led_dev; i < MAX_LED_DEV; i++, ld++) {
+
+		if (!ld->initialized)
+			continue;
 
 		if (ld->state != CONFIG_LED_STATUS_BLINKING)
 			continue;
@@ -110,10 +120,10 @@ void status_led_set(int led, int state)
 	if (led < 0 || led >= MAX_LED_DEV)
 		return;
 
-	if (!status_led_init_done)
-		status_led_init();
-
 	ld = &led_dev[led];
+
+	if (!ld->initialized)
+		return;
 
 	ld->state = state;
 	if (state == CONFIG_LED_STATUS_BLINKING) {
